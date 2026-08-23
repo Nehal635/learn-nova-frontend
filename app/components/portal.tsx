@@ -28,6 +28,12 @@ function formatDate(value?: string) {
     : new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
+function formatElapsedTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function getRecommendation(item: Attempt["recommendations"][number]) {
   return typeof item === "string" ? item : item.recommendation ?? `Practise ${item.topic ?? "this topic"}.`;
 }
@@ -208,10 +214,21 @@ function QuizRunner({ quiz, onClose, onCompleted }: { quiz: QuizDetail; onClose:
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [startedAt] = useState(() => Date.now());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const question = quiz.questions[index];
   const answered = Object.keys(answers).length;
+
+  useEffect(() => {
+    const updateElapsed = () => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    };
+
+    updateElapsed();
+    const intervalId = window.setInterval(updateElapsed, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [startedAt]);
 
   async function submitQuiz() {
     setSubmitting(true);
@@ -244,7 +261,16 @@ function QuizRunner({ quiz, onClose, onCompleted }: { quiz: QuizDetail; onClose:
             <span className="eyebrow">{quiz.title}</span>
             <p>Question {index + 1} of {quiz.questions.length}</p>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="Close quiz"><Icons.close /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span
+              className="level-pill"
+              aria-label={`Elapsed time ${formatElapsedTime(elapsedSeconds)}`}
+              aria-live="polite"
+            >
+              Time {formatElapsedTime(elapsedSeconds)}
+            </span>
+            <button className="icon-button" onClick={onClose} aria-label="Close quiz"><Icons.close /></button>
+          </div>
         </header>
         <div className="quiz-progress"><span style={{ width: `${((index + 1) / quiz.questions.length) * 100}%` }} /></div>
         <div className="quiz-question-body">
