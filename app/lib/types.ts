@@ -43,6 +43,7 @@ export interface Attempt {
   attempted_questions: number;
   score_percentage: number;
   average_time_seconds: number;
+  total_time_seconds: number;
   learning_level: string;
   topic_analysis: Record<string, TopicPerformance>;
   weak_topics: string[];
