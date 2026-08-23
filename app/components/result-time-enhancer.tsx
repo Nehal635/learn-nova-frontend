@@ -17,8 +17,66 @@ function formatDuration(totalSeconds: number) {
   return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
 }
 
+function getVisibleQuizSeconds() {
+  const timer = document.querySelector<HTMLElement>(
+    ".quiz-modal .quiz-modal-header .level-pill",
+  );
+
+  if (!timer) return null;
+
+  const match = timer.textContent?.match(/Time\s+(\d+):(\d{2})/i);
+  if (!match) return null;
+
+  const minutes = Number(match[1]);
+  const seconds = Number(match[2]);
+  return minutes * 60 + seconds;
+}
+
 export function ResultTimeEnhancer() {
   useEffect(() => {
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (requestUrl.includes("/api/backend/attempts") && init?.method?.toUpperCase() === "POST" && typeof init.body === "string") {
+        try {
+          const payload = JSON.parse(init.body) as {
+            quiz_id?: number;
+            answers?: Array<{ question_id: number; selected_option: number; time_taken_seconds: number }>;
+          };
+          const totalSeconds = getVisibleQuizSeconds();
+
+          if (totalSeconds !== null && Array.isArray(payload.answers) && payload.answers.length > 0) {
+            const count = payload.answers.length;
+            const baseSeconds = Math.floor(totalSeconds / count);
+            const remainder = totalSeconds % count;
+
+            payload.answers = payload.answers.map((answer, index) => ({
+              ...answer,
+              time_taken_seconds: Math.min(
+                3600,
+                baseSeconds + (index < remainder ? 1 : 0),
+              ),
+            }));
+
+            init = {
+              ...init,
+              body: JSON.stringify(payload),
+            };
+          }
+        } catch {
+          // Leave the original submission untouched if the request cannot be parsed.
+        }
+      }
+
+      return originalFetch(input, init);
+    };
+
     let requestInFlight = false;
 
     async function enhanceResult() {
@@ -53,7 +111,10 @@ export function ResultTimeEnhancer() {
     const observer = new MutationObserver(enhanceResult);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.fetch = originalFetch;
+    };
   }, []);
 
   return null;
