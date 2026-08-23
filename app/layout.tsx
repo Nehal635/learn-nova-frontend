@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ResultTimeEnhancer } from "./components/result-time-enhancer";
 
 export const metadata: Metadata = {
   title: "Learn Nova | Personalized learning",
@@ -17,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ResultTimeEnhancer />
+      </body>
     </html>
   );
 }
