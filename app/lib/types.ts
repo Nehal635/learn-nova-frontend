@@ -84,3 +84,16 @@ export interface AttemptResult extends Attempt {
   attempt_id?: number;
   message?: string;
 }
+
+export interface AiInsight {
+  status: "ready" | "collecting_data";
+  method: "random_forest" | "trend_fallback" | "insufficient_data";
+  predicted_next_score: number | null;
+  confidence: "high" | "medium" | "low" | "none";
+  data_points: number;
+  training_samples: number;
+  model_mae: number | null;
+  risk_level: "low" | "medium" | "high" | "unknown";
+  recommended_difficulty: "easy" | "intermediate" | "hard";
+  explanation: string;
+}

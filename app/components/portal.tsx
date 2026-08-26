@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { request, sessionRequest } from "@/app/lib/api";
 import type {
+  AiInsight,
   Attempt,
   AttemptResult,
   QuizDetail,
@@ -82,6 +83,7 @@ function StudentOverview({ user, onBrowse }: { user: User; onBrowse: () => void 
   const [dashboard, setDashboard] = useState<StudentDashboard | null>(null);
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [insight, setInsight] = useState<AiInsight | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -91,12 +93,14 @@ function StudentOverview({ user, onBrowse }: { user: User; onBrowse: () => void 
       request<StudentDashboard>("auth/me/dashboard"),
       request<QuizSummary[]>("quizzes"),
       request<Attempt[]>("auth/me/attempts"),
+      request<AiInsight>("auth/me/ai-insights").catch(() => null),
     ])
-      .then(([dashboardData, quizData, attemptData]) => {
+      .then(([dashboardData, quizData, attemptData, insightData]) => {
         if (!active) return;
         setDashboard(dashboardData);
         setQuizzes(quizData);
         setAttempts(attemptData);
+        setInsight(insightData);
       })
       .catch((caught) => active && setError(caught instanceof Error ? caught.message : "Could not load the dashboard."))
       .finally(() => active && setLoading(false));
@@ -188,6 +192,55 @@ function StudentOverview({ user, onBrowse }: { user: User; onBrowse: () => void 
             <p className="muted-copy">Complete a quiz to receive a focused recommendation based on your result.</p>
           )}
         </article>
+      </section>
+
+      <section className={`panel ai-insight-panel risk-${insight?.risk_level ?? "unknown"}`}>
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">Experimental AI forecast</span>
+            <h3>Next-performance outlook</h3>
+          </div>
+          <span className={`confidence-pill confidence-${insight?.confidence ?? "none"}`}>
+            {insight ? `${insight.confidence} confidence` : "unavailable"}
+          </span>
+        </div>
+        {insight ? (
+          <div className="ai-insight-grid">
+            <div className="ai-score">
+              <strong>
+                {insight.predicted_next_score == null
+                  ? "—"
+                  : `${Math.round(insight.predicted_next_score)}%`}
+              </strong>
+              <span>Predicted next score</span>
+            </div>
+            <div className="ai-facts">
+              <div>
+                <span>Risk level</span>
+                <strong>{insight.risk_level}</strong>
+              </div>
+              <div>
+                <span>Suggested difficulty</span>
+                <strong>{insight.recommended_difficulty}</strong>
+              </div>
+              <div>
+                <span>Method</span>
+                <strong>
+                  {insight.method === "random_forest"
+                    ? "Random Forest"
+                    : insight.method === "trend_fallback"
+                      ? "Recent trend"
+                      : "Waiting for attempts"}
+                </strong>
+              </div>
+            </div>
+            <p className="ai-explanation">{insight.explanation}</p>
+          </div>
+        ) : (
+          <p className="muted-copy">
+            AI insight is temporarily unavailable. Your quiz and progress data are still working normally.
+          </p>
+        )}
       </section>
 
       <section className="panel available-panel">
